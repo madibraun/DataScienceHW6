@@ -1,0 +1,12 @@
+name: hw6_app
+title: hw6_app
+username:
+account: m-braun
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3722970
+bundleId: 4291600
+url: https://m-braun.shinyapps.io/hw6_app/
+when: 1614709521.96437
+asMultiple: FALSE
+asStatic: FALSE

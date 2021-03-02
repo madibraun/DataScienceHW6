@@ -1,6 +1,8 @@
 library(shiny)
 library(dplyr)
+library(tidyverse)
 library(ggplot2)
+library(readr)
 
 covid19 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv")
 
@@ -27,7 +29,8 @@ server <- function(input, output) {
       scale_y_log10() + 
       labs(x = "Days Since 20 Cases",
            y = "# Cases",
-           color = "State")
+           color = "State",
+           title = "Number of COVID-19 Cases vs. Days Since 20 Cases, by State")
   )
 }
   

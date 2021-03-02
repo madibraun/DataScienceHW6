@@ -1,6 +1,6 @@
 ---
 title: 'Weekly Exercises #6'
-author: "Put your name here"
+author: "Madeline Braun"
 output: 
   html_document:
     keep_md: TRUE
@@ -12,7 +12,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
 ```
 
 ```{r libraries}
@@ -37,6 +37,7 @@ library(patchwork)     # for nicely combining ggplot2 graphs
 library(gt)            # for creating nice tables
 library(rvest)         # for scraping data
 library(robotstxt)     # for checking if you can scrape data
+library(janitor)
 theme_set(theme_minimal())
 ```
 
@@ -73,20 +74,27 @@ Once your repository is created, you should always open your **project** rather 
 
   1. This app will also use the COVID data. Make sure you load that data and all the libraries you need in the `app.R` file you create. Below, you will post a link to the app that you publish on shinyapps.io. You will create an app to compare states' cumulative number of COVID cases over time. The x-axis will be number of days since 20+ cases and the y-axis will be cumulative cases on the log scale (`scale_y_log10()`). We use number of days since 20+ cases on the x-axis so we can make better comparisons of the curve trajectories. You will have an input box where the user can choose which states to compare (`selectInput()`) and have a submit button to click once the user has chosen all states they're interested in comparing. The graph should display a different line for each state, with labels either on the graph or in a legend. Color can be used if needed. 
   
-```{r}
-covid19 %>% 
-      group_by(state) %>% 
-      mutate(days_0 = as.numeric(difftime(date, lag(date, 1)))) %>% 
-      replace_na(list(days_0 = 0)) %>% 
-      mutate(days_since_20 = cumsum(days_0))
-```
-  
+Link: [Click Here!](https://m-braun.shinyapps.io/hw6_app/)
   
 ## Warm-up exercises from tutorial
 
   2. Read in the fake garden harvest data. Find the data [here](https://github.com/llendway/scraping_etc/blob/main/2020_harvest.csv) and click on the `Raw` button to get a direct link to the data. 
   
+```{r}
+garden_fake <- read_csv("https://raw.githubusercontent.com/llendway/scraping_etc/main/2020_harvest.csv")
+```
+  
+  
   3. Read in this [data](https://www.kaggle.com/heeraldedhia/groceries-dataset) from the kaggle website. You will need to download the data first. Save it to your project/repo folder. Do some quick checks of the data to assure it has been read in appropriately.
+
+```{r}
+groceries <- read_csv("Groceries_dataset.csv")
+```
+
+```{r}
+head(groceries, 3)
+```
+
 
   4. CHALLENGE(not graded): Write code to replicate the table shown below (open the .html file to see it) created from the `garden_harvest` data as best as you can. When you get to coloring the cells, I used the following line of code for the `colors` argument:
   
@@ -97,12 +105,88 @@ colors = scales::col_numeric(
       ) %>% as.character()
 ```
 
-![](garden_table.html){width=600, height=1000}
+
+```{r}
+garden_clean <- garden_fake %>% 
+  select(-`This is my awesome data!`) %>% 
+  row_to_names(row_number = 2) %>% 
+  filter(vegetable %in% c("beans", "carrots", "tomatoes")) %>% 
+  mutate(date = as.Date(date, "%m/%d/%y"), 
+         month = month(date, label = TRUE),
+         weight = ifelse(weight == "-", 0, weight)) %>% 
+  group_by(vegetable, variety, month) %>% 
+  summarise(weight = sum(as.numeric(weight)*0.00220462)) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = month, values_from = weight) %>% 
+  replace_na(list(Jul = 0, Aug = 0, Sep = 0, Oct = 0))
+  
+  
+garden_clean %>% 
+  gt(rowname_col = "variety",
+     groupname_col = "vegetable") %>% 
+  data_color(
+    columns = vars(Jul, Aug, Sep, Oct),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "RColorBrewer::YlGn") %>% 
+        as.character(),
+      domain = NULL
+  ))
+```
+
 
 
   5. Create a table using `gt` with data from your project or from the `garden_harvest` data if your project data aren't ready.
   
+```{r}
+soil <- read_csv("soil_magnetism_data.csv")
+```
+
+```{r}
+soil %>% 
+  gt(rowname_col = "sample_ID",
+      groupname_col = "road") %>% 
+  data_color(
+    columns = vars(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11),
+    colors = scales::col_bin(
+      palette = paletteer::paletteer_d(
+        palette = "RColorBrewer::Reds"
+      ) %>% as.character(),
+      domain = NULL
+    ))
+```
+
+  
   6. Use `patchwork` operators and functions to combine at least two graphs using your project data or `garden_harvest` data if your project data aren't read.
+  
+  
+```{r}
+plot1 <- soil %>% 
+  filter(state == "Minnesota") %>% 
+  mutate(traffic_class = fct_relevel(traffic_class, "low", "medium", "high")) %>% 
+  ggplot(aes(x = distance_cm, y = sus_avg, 
+             ymin = sus_avg-sus_stdv, ymax = sus_avg+sus_stdv,
+             color = traffic_class)) +
+  geom_point() +
+  geom_pointrange() +
+  labs(x = "Distance from Road (cm)",
+       y = "Average Magnetic Susceptibility",
+       color = "Traffic Volume Classification",
+       title = "Magnetic Susceptibility of Roadside Soils in Minnesota") +
+  facet_wrap(~road) 
+
+plot2 <- soil %>% 
+  filter(state == "Minnesota") %>% 
+  mutate(traffic_class = fct_relevel(traffic_class, "low", "medium", "high")) %>%
+  ggplot(aes(x = traffic_class, y = sus_avg, group = traffic_class)) +
+  geom_boxplot(aes(fill = traffic_class), alpha = 0.5) +
+  labs(x = "Traffic Volume Classification",
+       y = "") +
+  theme(legend.position = "none")
+
+plot1 + plot2 + plot_layout(ncol = 1, nrow = 2)
+```
+  
   
 
 **DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
